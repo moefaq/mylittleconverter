@@ -1,0 +1,25 @@
+mixed-port: 
+allow-lan: 
+bind-address: 
+mode: 
+log-level: 
+external-controller: 
+dns:
+    enable: 
+    ipv6: 
+    default-nameserver: 
+    enhanced-mode: 
+    fake-ip-range: 
+    fake-ip-filter: 
+    use-hosts: 
+    nameserver: 
+    fallback: 
+    fallback-filter:
+proxies:
+
+proxy-groups:
+    
+rule-providers:
+    
+rules:
+    

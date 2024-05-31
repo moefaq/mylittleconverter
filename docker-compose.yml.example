@@ -1,0 +1,19 @@
+name: mylittleconverter
+
+services:
+  converter:
+    image: moefaq/mylittleconverter
+    restart: always
+    ports:
+      - "127.0.0.1:8888:8888"
+    environment:
+      TZ: Asia/Shanghai
+    networks:
+      - network
+    volumes:
+      - ./template.yml:/mylittleconverter/template.yml:ro
+      - ./config.yml:/mylittleconverter/config.yml:ro
+    
+
+networks:
+  network:
