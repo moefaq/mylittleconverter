@@ -73,7 +73,7 @@ async def handle_request(request):
                 }
                 return aiohttp.web.Response(
                     text=yaml.safe_dump(
-                        data=yamlData, allow_unicode=False, encoding="utf-8"
+                        data=yamlData, encoding="utf-8", width=400
                     ).decode("unicode-escape"),
                     headers=respHeaders,
                 )
