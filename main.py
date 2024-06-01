@@ -60,27 +60,30 @@ async def handle_request(request):
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, allow_redirects=True) as response:
-            respHeaders = {
-                "subscription-userinfo": response.headers["subscription-userinfo"],
-                "profile-update-interval": response.headers["profile-update-interval"],
-                "content-disposition": response.headers["content-disposition"],
-                "profile-web-page-url": response.headers["profile-web-page-url"],
-            }
             respYamlData = yaml.full_load(await response.text(encoding="utf-8"))
             yamlData = await buildSubData(respYamlData)
             if yamlData is not None:
+                respHeaders = {
+                    "subscription-userinfo": response.headers["subscription-userinfo"],
+                    "profile-update-interval": response.headers[
+                        "profile-update-interval"
+                    ],
+                    "content-disposition": response.headers["content-disposition"],
+                    "profile-web-page-url": response.headers["profile-web-page-url"],
+                }
                 return aiohttp.web.Response(
                     text=yaml.safe_dump(
-                        data=yamlData,
-                        allow_unicode=False,
-                        encoding="utf-8",
-                    ).decode("unicode-escape")
+                        data=yamlData, allow_unicode=False, encoding="utf-8"
+                    ).decode("unicode-escape"),
+                    headers=respHeaders,
                 )
             else:
-                return aiohttp.web.Response(text="Nothing!",headers=respHeaders)
+                return aiohttp.web.Response(text="Nothing!")
 
 
 app = aiohttp.web.Application()
 app.router.add_get("/", handle_request)
 
-aiohttp.web.run_app(app, host=f"{config['server']['listen']}", port=config['server']['port'])
+aiohttp.web.run_app(
+    app, host=f"{config['server']['listen']}", port=config["server"]["port"]
+)
