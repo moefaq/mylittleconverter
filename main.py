@@ -13,12 +13,16 @@ logging.basicConfig(
 with open("config.yml", "r") as f:
     config = yaml.safe_load(f)
 
+templatesDict = {
+    template["token"]: template["file"] for template in config["templates"]
+}
+
 headers = {"User-Agent": "clash"}
 
 
-async def buildSubData(yamlData):
+async def buildSubData(yamlData, templateName):
     try:
-        with open("template.yml", "r") as f:
+        with open(f"templates/{templateName}", "r") as f:
             templateData = yaml.load(f, yaml.CUnsafeLoader)
 
         subYamlData = templateData
@@ -55,13 +59,13 @@ async def handle_request(request):
     apptoken = request.query.get("apptoken")
     url = request.query.get("url")
 
-    if apptoken not in config["server"]["token"]:
+    if apptoken not in templatesDict.keys():
         return aiohttp.web.Response(text="Invalid apptoken", status=401)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, allow_redirects=True) as response:
             respYamlData = yaml.full_load(await response.text(encoding="utf-8"))
-            yamlData = await buildSubData(respYamlData)
+            yamlData = await buildSubData(respYamlData, templatesDict[apptoken])
             if yamlData is not None:
                 respHeaders = {
                     "subscription-userinfo": response.headers["subscription-userinfo"],
