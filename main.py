@@ -13,16 +13,16 @@ logging.basicConfig(
 with open("config.yml", "r") as f:
     config = yaml.safe_load(f)
 
-templatesDict = {
-    template["token"]: template["file"] for template in config["templates"]
-}
+appsTokens = [app["token"] for app in config["apps"]]
 
 headers = {"User-Agent": "clash"}
 
 
-async def buildSubData(yamlData, templateName):
+async def buildSubData(yamlData, apptoken):
     try:
-        with open(f"templates/{templateName}", "r") as f:
+        appConfig = next((app for app in config["apps"] if apptoken in app.values()))
+        allinGroups = appConfig["allin"]
+        with open(f"apps/{appConfig['file']}", "r") as f:
             templateData = yaml.load(f, yaml.CUnsafeLoader)
 
         subYamlData = templateData
@@ -36,11 +36,11 @@ async def buildSubData(yamlData, templateName):
 
         proxyGroups = templateData["proxy-groups"]
         for proxyGroup in proxyGroups:
-            if proxyGroup["name"] == "🔰手动选择":
+            if proxyGroup["name"] in allinGroups:
                 proxyGroup["proxies"] = proxiesNames
             if (
-                proxyGroup["proxies"][0][:2] == "/^"
-                and proxyGroup["proxies"][0][-1] == "/"
+                proxyGroup["proxies"][-1][:2] == "/^"
+                and proxyGroup["proxies"][-1][-1] == "/"
             ):
                 pattern = re.compile(proxyGroup["proxies"][0].replace("/", ""))
                 proxyGroup["proxies"] = []
@@ -59,13 +59,13 @@ async def handle_request(request):
     apptoken = request.query.get("apptoken")
     url = request.query.get("url")
 
-    if apptoken not in templatesDict.keys():
+    if apptoken not in appsTokens:
         return aiohttp.web.Response(text="Invalid apptoken", status=401)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, allow_redirects=True) as response:
             respYamlData = yaml.full_load(await response.text(encoding="utf-8"))
-            yamlData = await buildSubData(respYamlData, templatesDict[apptoken])
+            yamlData = await buildSubData(respYamlData, apptoken)
             if yamlData is not None:
                 respHeaders = {
                     "subscription-userinfo": response.headers["subscription-userinfo"],
