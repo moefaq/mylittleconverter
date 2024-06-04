@@ -42,8 +42,8 @@ async def buildSubData(yamlData, apptoken):
                 proxyGroup["proxies"][-1][:2] == "/^"
                 and proxyGroup["proxies"][-1][-1] == "/"
             ):
-                pattern = re.compile(proxyGroup["proxies"][0].replace("/", ""))
-                proxyGroup["proxies"] = []
+                pattern = re.compile(proxyGroup["proxies"][-1].replace("/", ""))
+                proxyGroup["proxies"].pop()
                 for proxiesName in proxiesNames:
                     if re.search(pattern, proxiesName):
                         proxyGroup["proxies"].append(proxiesName)
@@ -77,7 +77,10 @@ async def handle_request(request):
                 }
                 return aiohttp.web.Response(
                     text=yaml.safe_dump(
-                        data=yamlData, encoding="utf-8", width=400
+                        data=yamlData,
+                        encoding="utf-8",
+                        width=400,
+                        default_flow_style=False,
                     ).decode("unicode-escape"),
                     headers=respHeaders,
                 )
