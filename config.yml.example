@@ -4,9 +4,5 @@ server:
 apps:
   - token: aaaaaaaaaaaaaaaa
     file: template_a.yaml
-    allin:
-      - 手动选择
   - token: bbbbbbbbbbbbbbbb
     file: https://xxx.xxx/xxx.txt
-    allin:
-      - 自动选择
