@@ -1,18 +1,27 @@
 import aiohttp.web
 from aiohttp.abc import AbstractAccessLogger
-from ruamel.yaml import YAML
-from ruamel.yaml.compat import StringIO
+import ruamel.yaml
 import logging
 import re
+
+import ruamel.yaml.compat
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s",
     level=logging.INFO,
 )
 
-yaml = YAML()
+
+class noAliasRTRepresenter(ruamel.yaml.RoundTripRepresenter):
+    def ignore_aliases(self, data) -> bool:
+        return True
+
+
+
+yaml = ruamel.yaml.YAML()
 yaml.width = 2000
 yaml.indent = 4
+yaml.Representer = noAliasRTRepresenter
 
 with open("config.yml", "r") as f:
     config = yaml.load(f)
@@ -25,7 +34,6 @@ headers = {"User-Agent": "clash"}
 async def buildSubData(yamlData, apptoken):
     try:
         appConfig = next((app for app in config["apps"] if apptoken in app.values()))
-        allinGroups = appConfig["allin"]
 
         templateData = None
 
@@ -50,7 +58,7 @@ async def buildSubData(yamlData, apptoken):
 
         proxyGroups = templateData["proxy-groups"]
         for proxyGroup in proxyGroups:
-            if proxyGroup["name"] in allinGroups:
+            if len(proxyGroup["proxies"]) == 0:
                 proxyGroup["proxies"] = proxiesNames
             if (
                 proxyGroup["proxies"][-1][:2] == "/^"
@@ -89,7 +97,7 @@ async def handle_request(request):
                     "content-disposition": response.headers["content-disposition"],
                     "profile-web-page-url": response.headers["profile-web-page-url"],
                 }
-                stream = StringIO()
+                stream = ruamel.yaml.compat.StringIO()
                 yaml.dump(yamlData, stream)
                 text = stream.getvalue()
                 stream.close()
