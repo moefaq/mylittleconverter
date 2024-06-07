@@ -1,8 +1,12 @@
 server:
   listen: 0.0.0.0
   port: 7777
-config:
+apps:
   - token: aaaaaaaaaaaaaaaa
-    template: template_b.yaml
+    file: template_a.yaml
+    allin:
+      - 手动选择
   - token: bbbbbbbbbbbbbbbb
-    template: template_b.yaml
+    file: https://xxx.xxx/xxx.txt
+    allin:
+      - 自动选择

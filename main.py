@@ -1,6 +1,7 @@
 import aiohttp.web
-import yaml
-import aiohttp
+from aiohttp.abc import AbstractAccessLogger
+from ruamel.yaml import YAML
+from ruamel.yaml.compat import StringIO
 import logging
 import re
 
@@ -9,9 +10,12 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
+yaml = YAML()
+yaml.width = 2000
+yaml.indent = 4
 
 with open("config.yml", "r") as f:
-    config = yaml.safe_load(f)
+    config = yaml.load(f)
 
 appsTokens = [app["token"] for app in config["apps"]]
 
@@ -22,8 +26,18 @@ async def buildSubData(yamlData, apptoken):
     try:
         appConfig = next((app for app in config["apps"] if apptoken in app.values()))
         allinGroups = appConfig["allin"]
-        with open(f"apps/{appConfig['file']}", "r") as f:
-            templateData = yaml.load(f, yaml.CUnsafeLoader)
+
+        templateData = None
+
+        if re.match(r"^https?://", appConfig["file"]):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    appConfig["file"], headers=headers, allow_redirects=True
+                ) as response:
+                    templateData = yaml.load(await response.text(encoding="utf-8"))
+        else:
+            with open(f"apps/{appConfig['file']}", "r") as f:
+                templateData = yaml.load(f)
 
         subYamlData = templateData
 
@@ -64,7 +78,7 @@ async def handle_request(request):
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, allow_redirects=True) as response:
-            respYamlData = yaml.full_load(await response.text(encoding="utf-8"))
+            respYamlData = yaml.load(await response.text(encoding="utf-8"))
             yamlData = await buildSubData(respYamlData, apptoken)
             if yamlData is not None:
                 respHeaders = {
@@ -75,13 +89,12 @@ async def handle_request(request):
                     "content-disposition": response.headers["content-disposition"],
                     "profile-web-page-url": response.headers["profile-web-page-url"],
                 }
+                stream = StringIO()
+                yaml.dump(yamlData, stream)
+                text = stream.getvalue()
+                stream.close()
                 return aiohttp.web.Response(
-                    text=yaml.safe_dump(
-                        data=yamlData,
-                        encoding="utf-8",
-                        width=400,
-                        default_flow_style=False,
-                    ).decode("unicode-escape"),
+                    text=text,
                     headers=respHeaders,
                 )
             else:
@@ -92,5 +105,8 @@ app = aiohttp.web.Application()
 app.router.add_get("/", handle_request)
 
 aiohttp.web.run_app(
-    app, host=f"{config['server']['listen']}", port=config["server"]["port"]
+    app,
+    host=f"{config['server']['listen']}",
+    port=config["server"]["port"],
+    access_log_format='%a %t "%r" %s %b "%{Referer}i" "User-Agent: %{User-Agent}i" "X-Real-IP: %{X-Real-IP}i" "X-FORWARDED-FOR: %{X-FORWARDED-FOR}i"',
 )
