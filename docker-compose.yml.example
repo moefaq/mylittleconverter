@@ -11,7 +11,7 @@ services:
     networks:
       - network
     volumes:
-      - ./template.yml:/mylittleconverter/template.yml:ro
+      - ./apps:/mylittleconverter/apps:ro
       - ./config.yml:/mylittleconverter/config.yml:ro
     
 

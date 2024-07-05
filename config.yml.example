@@ -3,6 +3,14 @@ server:
   port: 7777
 apps:
   - token: aaaaaaaaaaaaaaaa
-    file: template_a.yaml
+    name: aaa.aaa
+    templates:
+      - type: clash
+        file: clash.yml
+      - type: surge
+        file: surge.conf
   - token: bbbbbbbbbbbbbbbb
-    file: https://xxx.xxx/xxx.txt
+    name: bbb
+    templates:
+      - type: clash
+        file: https://xxx.xxx/xxx.txt

@@ -9,3 +9,4 @@ docker-compose.yml
 config.yml
 .venv
 .vscode
+apps/

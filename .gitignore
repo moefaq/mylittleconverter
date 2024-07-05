@@ -2,6 +2,8 @@
 *.yml
 *.pem
 test/
+apps.debug
+!apps/**
 # vscode environment
 .vscode/
 

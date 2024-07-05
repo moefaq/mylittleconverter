@@ -1,4 +1,4 @@
 requests
-# PyYAML
 aiohttp
 ruamel.yaml
+brotli
