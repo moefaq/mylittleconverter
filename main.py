@@ -56,6 +56,8 @@ with open("config.yml", "r") as f:
     config = yaml.load(f)
 
 appsTokens = [app["token"] for app in config["apps"]]
+surgeConfCommentPrefixes = (
+    ";") if config["other"]["surge_allow_export_comment"] == True else (";", "#")
 
 
 async def surgeConvertor(dataText: str, appToken: str, originalReqHeaders: dict[str, str], requestUrl: str) -> str | None:
@@ -65,7 +67,7 @@ async def surgeConvertor(dataText: str, appToken: str, originalReqHeaders: dict[
                 delimiters=("="),
                 allow_no_value=True,
                 strict=False,
-                comment_prefixes=(";"),
+                comment_prefixes=surgeConfCommentPrefixes,
             )
             managedFlag = ""
             lines = dataText.splitlines(True)
@@ -122,18 +124,33 @@ async def surgeConvertor(dataText: str, appToken: str, originalReqHeaders: dict[
         if "Panel" in originalSurgeConfig:
             surgeConfig["Panel"] = originalSurgeConfig["Panel"]
 
-        tempDict = []
+        excludeOriginalProxiesDict = []
         for proxyName, proxyValue in originalSurgeConfig["Proxy"].items():
-            if proxyValue in {"DIRECT", "REJECT", "direct", "reject"}:
-                tempDict.append((proxyName, proxyValue))
-        for kv in tempDict:
+            if proxyValue is None and re.match(r"^(direct|reject|#)", proxyName, re.IGNORECASE):
+                excludeOriginalProxiesDict.append((proxyName, proxyValue))
+                continue
+            if re.match(r"^(direct|reject|#)", proxyValue, re.IGNORECASE):
+                excludeOriginalProxiesDict.append((proxyName, proxyValue))
+                continue
+        for kv in excludeOriginalProxiesDict:
             originalSurgeConfig["Proxy"].pop(kv[0])
-        surgeConfig["Proxy"] = originalSurgeConfig["Proxy"]
+        originalSurgeProxies = "\n".join(
+            f"{key} = {value}" for key, value in originalSurgeConfig["Proxy"].items())
+
+        for _, v in originalSurgeConfig["Proxy Group"].items():
+            if re.search(r"policy-path=https?:\/\/.*(subscribe|getnodeinfo)\?token", v, re.IGNORECASE):
+                extUrl = re.search(
+                    r"https?:\/\/.*(subscribe|getnodeinfo)\?token.*", v, re.IGNORECASE)
+                if extUrl:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(extUrl.group(), headers=originalReqHeaders, allow_redirects=True) as response:
+                            originalSurgeProxies += await response.text(encoding="utf-8")
 
         stream = io.StringIO()
         surgeConfig.write(stream)
         surgeText = stream.getvalue()
         stream.close()
+        surgeText = surgeText.replace("$proxies", originalSurgeProxies, 1)
 
         if managedFlag != "":
             managedFlag = managedFlag.replace("$subs_link", requestUrl)
@@ -226,7 +243,7 @@ async def fetchOriginalData(session: aiohttp.ClientSession, url: str, headers: d
 async def processSubData(dataText: str, originalReqHeaders: dict[str, str], appToken: str, requestUrl: str) -> str | None:
     if re.search("clash", originalReqHeaders["User-Agent"], re.IGNORECASE):
         responseData = await clashConvertor(dataText, appToken, originalReqHeaders)
-    elif re.search("surge", originalReqHeaders["User-Agent"],re.IGNORECASE):
+    elif re.search("surge", originalReqHeaders["User-Agent"], re.IGNORECASE):
         responseData = await surgeConvertor(dataText, appToken, originalReqHeaders, requestUrl)
 
     if responseData:
@@ -238,7 +255,7 @@ async def processSubData(dataText: str, originalReqHeaders: dict[str, str], appT
 def createResponseHeaders(originalHeaders: dict[str, str], requestUA: str) -> dict[str, str] | None:
     headers = CaseInsensitiveDict(originalHeaders)
 
-    if re.search("clash", requestUA):
+    if re.search("clash", requestUA, re.IGNORECASE):
         return {
             "subscription-userinfo": headers["subscription-userinfo"],
             "profile-update-interval": headers[
@@ -247,7 +264,7 @@ def createResponseHeaders(originalHeaders: dict[str, str], requestUA: str) -> di
             "content-disposition": headers["content-disposition"],
             "profile-web-page-url": headers["profile-web-page-url"],
         }
-    if re.search("surge", requestUA):
+    if re.search("surge", requestUA, re.IGNORECASE):
         return {
             "content-disposition": headers["content-disposition"],
         }
@@ -290,6 +307,7 @@ async def handle_request(request: aiohttp.web_request.Request):
 
 app = aiohttp.web.Application()
 app.router.add_get("/", handle_request)
+app.router.add_get("/convert", handle_request)
 
 aiohttp.web.run_app(
     app,
