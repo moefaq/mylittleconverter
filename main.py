@@ -69,11 +69,15 @@ async def surgeConvertor(dataText: str, appToken: str, originalReqHeaders: dict[
             )
             managedFlag = ""
             lines = dataText.splitlines(True)
-            if re.match("#!MANAGED-CONFIG", lines[0]):
-                managedFlag = lines[0]
-                text = "".join(lines[1:])
-            else:
-                text = "".join(lines)
+            for i, line in enumerate(lines):
+                if re.search("#!MANAGED-CONFIG", line):
+                    managedFlag = line
+                    continue
+                elif not line.startswith("#"):
+                    text = "".join(lines[i:])
+                    break
+                else:
+                    continue
 
             surgeConfig.read_string(text)
             return surgeConfig, managedFlag
@@ -114,7 +118,9 @@ async def surgeConvertor(dataText: str, appToken: str, originalReqHeaders: dict[
                     templateSurgeConfig, managedFlag = templateSurge
 
         surgeConfig = templateSurgeConfig
-        surgeConfig["Panel"] = originalSurgeConfig["Panel"]
+
+        if "Panel" in originalSurgeConfig:
+            surgeConfig["Panel"] = originalSurgeConfig["Panel"]
 
         tempDict = []
         for proxyName, proxyValue in originalSurgeConfig["Proxy"].items():
