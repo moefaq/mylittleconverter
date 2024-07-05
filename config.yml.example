@@ -14,3 +14,5 @@ apps:
     templates:
       - type: clash
         file: https://xxx.xxx/xxx.txt
+other:
+  surge_allow_export_comment: False
