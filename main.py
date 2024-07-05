@@ -224,9 +224,9 @@ async def fetchOriginalData(session: aiohttp.ClientSession, url: str, headers: d
 
 
 async def processSubData(dataText: str, originalReqHeaders: dict[str, str], appToken: str, requestUrl: str) -> str | None:
-    if re.search("clash", originalReqHeaders["User-Agent"]):
+    if re.search("clash", originalReqHeaders["User-Agent"], re.IGNORECASE):
         responseData = await clashConvertor(dataText, appToken, originalReqHeaders)
-    elif re.search("surge", originalReqHeaders["User-Agent"]):
+    elif re.search("surge", originalReqHeaders["User-Agent"],re.IGNORECASE):
         responseData = await surgeConvertor(dataText, appToken, originalReqHeaders, requestUrl)
 
     if responseData:
